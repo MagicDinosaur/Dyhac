@@ -2,17 +2,13 @@ import {useHistory, useLocation, useParams} from "react-router-dom";
 import {useEffect, useState} from "react";
 import room from "../../model/room";
 import classNames from "classnames";
-
+import md5 from 'md5'
 const Room = (props) => {
     const id = useParams().id;
-
     const history = useHistory();
     const location = useLocation();
-
     const urlSearchParams = new URLSearchParams(location.search)
-
     const guest = urlSearchParams.get("guest")
-
     const [useID, setID] = useState(id);
 
     const [useRoomDetail, setRoomDetail] = useState({
@@ -20,6 +16,7 @@ const Room = (props) => {
         name: null,
         owner: null,
         question: [],
+        passwordCheck:false,
     });
 
     const [useAskQuestionField, setAskQuestionField] = useState()
@@ -32,9 +29,11 @@ const Room = (props) => {
             } catch (e) {
                 history.push('/');
             }
+
         }
         roomScreen();
     }, [useID])
+
 
     useEffect(() => {
         document.title = useRoomDetail.name + ' / ' + useRoomDetail.owner + ' - Dyhac';
@@ -54,13 +53,14 @@ const Room = (props) => {
     }
 
     const moderator = async () => {
-        let password = prompt("Please enter room password:");
-
-        if (!password) {
-            return;
+        let password = md5(prompt("Please enter room password:"));
+        const check = await room.screen(useID,password = password)
+        if(check['passwordCheck']){
+            setRoomDetail(check);
+            console.log(check);
+        }else{
+            console.log("fail");
         }
-
-        alert(password);
     }
     return (
         <div className={classNames('mx-auto', 'mb-5')} style={{width: '690px'}}>
@@ -105,7 +105,7 @@ const Room = (props) => {
                               }} value={useAskQuestionField}></textarea>
                 </div>
                 <div className={'col-3'}>
-                    <button type="button" className="btn btn-primary w-100 h-100" onClick={questionAsk}><i
+                    <button type="button" className="btn btn-primary w-100 h-10" onClick={questionAsk}><i
                         className="fas fa-paper-plane" style={{paddingRight: '10px'}}></i>Send
                     </button>
                 </div>

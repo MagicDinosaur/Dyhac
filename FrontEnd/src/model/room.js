@@ -7,7 +7,6 @@ const room = class {
         formData.append('name', name);
         formData.append('owner', owner);
         formData.append('password', password);
-
         const url = '/room/create';
         const response = await api.post(url, formData);
 
@@ -17,12 +16,11 @@ const room = class {
         return response;
     }
 
-    static async screen(id) {
+    static async screen(id,password = null) {
         const formData = new FormData();
-
+        formData.append('password', password);
         const url = '/room/'+id+'/screen';
         const response = await api.post(url, formData);
-
         if (!response.success) {
             throw new Error(response.reason);
         }
@@ -42,7 +40,20 @@ const room = class {
         }
         return response;
     }
-
+    //
+    // static async questionMod(id,guest,content) {
+    //     const formData = new FormData();
+    //     formData.append('owner',guest);
+    //     formData.append('content',content);
+    //
+    //     const url = '/room/'+id+'/question/ask';
+    //     const response = await api.post(url, formData);
+    //
+    //     if (!response.success) {
+    //         throw new Error(response.reason);
+    //     }
+    //     return response;
+    // }
 }
 
 export default room;
