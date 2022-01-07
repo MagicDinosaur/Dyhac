@@ -53,23 +53,26 @@ def room_create():
 def room_screen(id):
     if not id in room.list:
         return jsonify(
-            reason='ROOM_EXIST',
+            reason='ROOM_UNEXIST',
             success=False
         )
 
     room_get = room.list[id]
-
+    password = request.form['password'] if 'password' in request.form else False
+    if(password == room_get.password):
+        passwordChecked = True
+    else:
+        passwordChecked = False
     response = {
         'id': room_get.id,
         'name': room_get.name,
         'owner': room_get.owner,
+        'passwordCheck': passwordChecked,
     }
 
     response_question = []
 
     for q in room_get.question:
-        if not q.approve:
-            continue
         qd = {
             'id': q.id,
             'content': q.content,
@@ -78,7 +81,11 @@ def room_screen(id):
         }
         if q.owner:
             qd['owner'] = q.owner
-        response_question.append(qd)
+        if not q.approve:
+            if (passwordChecked):
+                response_question.append(qd)
+        else:
+            response_question.append(qd)
 
     response['question'] = response_question
     response['success'] = True
@@ -93,7 +100,7 @@ def room_question_ask(id):
 
     if not id in room.list:
         return jsonify(
-            reason='ROOM_EXIST',
+            reason='ROOM_UNEXIST',
             success=False
         )
 
@@ -107,24 +114,19 @@ def room_question_ask(id):
 @app.route('/room/<rid>/question/<qid>/mod', methods=['POST', 'DELETE'])
 def room_question_mod(rid, qid):
     password = request.form['password']
-
     if not rid in room.list:
         return jsonify(
-            reason='ROOM_EXIST',
+            reason='ROOM_UNEXIST',
             success=False
         )
-
     room_get = room.list[rid]
-
     if not room_get.password == password:
         return jsonify(
             reason='PASSWORD_WRONG',
             success=False
         )
-
     question_found = False
     question_method = True if request.method == 'POST' else False if request.method == 'DELETE' else False
-
     for q in room_get.question:
         if not q.id == qid:
             continue
@@ -134,18 +136,20 @@ def room_question_mod(rid, qid):
                 answer = bool(request.form['answer'])
                 if answer:
                     q.answer = True
+                else:
+                    q.answer = False
             q.approve = True
         else:
             room_get.question.remove(q)
 
     if not question_found:
         return jsonify(
-            reason='QUESTION_EXIST',
+            reason='QUESTION_UNEXIST',
             success=False
         )
 
     return jsonify(
-        success=True
+        success=True,
     )
 
 if __name__ == '__main__':
