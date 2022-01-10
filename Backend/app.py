@@ -6,8 +6,10 @@ from flask_cors import CORS, cross_origin
 app = Flask(__name__)
 CORS(app)
 
+
 def id_generate():
     return hashlib.md5(str(time.time()).encode()).hexdigest()[0:6]
+
 
 class question:
 
@@ -18,6 +20,7 @@ class question:
         self.approve = False
         self.answer = False
         self.time = int(time.time())
+
 
 class room:
     list = {}
@@ -36,6 +39,7 @@ class room:
         self.question.append(question_create)
         return question_create
 
+
 @app.route('/room/create', methods=['POST'])
 def room_create():
     name = request.form['name']
@@ -49,45 +53,48 @@ def room_create():
         id=room_create.id
     )
 
+
 @app.route('/room/<id>/screen', methods=['POST'])
 def room_screen(id):
+    password = request.form['password'] if 'password' in request.form else None
+
     if not id in room.list:
         return jsonify(
-            reason='ROOM_UNEXIST',
+            reason='ROOM_EXIST',
             success=False
         )
 
     room_get = room.list[id]
-    password = request.form['password'] if 'password' in request.form else False
-    if(password == room_get.password):
-        passwordChecked = True
-    else:
-        passwordChecked = False
+
+    moderator = False
+    if password and room_get.password == password:
+        moderator = True
+
     response = {
         'id': room_get.id,
         'name': room_get.name,
         'owner': room_get.owner,
-        'passwordCheck': passwordChecked,
     }
 
     response_question = []
 
     for q in room_get.question:
+        if not q.approve and not moderator:
+            continue
         qd = {
             'id': q.id,
             'content': q.content,
             'answer': q.answer,
-            'time': q.time
+            'time': q.time,
         }
         if q.owner:
             qd['owner'] = q.owner
-        if not q.approve:
-            if (passwordChecked):
-                response_question.append(qd)
-        else:
-            response_question.append(qd)
+        if moderator:
+            qd['approve'] = q.approve
+        response_question.append(qd)
 
     response['question'] = response_question
+    response['moderator'] = moderator
     response['success'] = True
 
     return jsonify(response)
@@ -100,7 +107,7 @@ def room_question_ask(id):
 
     if not id in room.list:
         return jsonify(
-            reason='ROOM_UNEXIST',
+            reason='ROOM_EXIST',
             success=False
         )
 
@@ -111,22 +118,28 @@ def room_question_ask(id):
         success=True
     )
 
+
 @app.route('/room/<rid>/question/<qid>/mod', methods=['POST', 'DELETE'])
 def room_question_mod(rid, qid):
     password = request.form['password']
+
     if not rid in room.list:
         return jsonify(
-            reason='ROOM_UNEXIST',
+            reason='ROOM_EXIST',
             success=False
         )
+
     room_get = room.list[rid]
+
     if not room_get.password == password:
         return jsonify(
             reason='PASSWORD_WRONG',
             success=False
         )
+
     question_found = False
     question_method = True if request.method == 'POST' else False if request.method == 'DELETE' else False
+
     for q in room_get.question:
         if not q.id == qid:
             continue
@@ -136,21 +149,20 @@ def room_question_mod(rid, qid):
                 answer = bool(request.form['answer'])
                 if answer:
                     q.answer = True
-                else:
-                    q.answer = False
             q.approve = True
         else:
             room_get.question.remove(q)
 
     if not question_found:
         return jsonify(
-            reason='QUESTION_UNEXIST',
+            reason='QUESTION_EXIST',
             success=False
         )
 
     return jsonify(
-        success=True,
+        success=True
     )
+
 
 if __name__ == '__main__':
     app.run()

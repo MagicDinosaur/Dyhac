@@ -49,6 +49,10 @@ const Welcome = (props) => {
         }
     }
 
+    useEffect(() => {
+        document.title = 'Dyhac';
+    }, [])
+
     return (
         <div className={classNames('mx-auto')} style={{width: '690px'}}>
             <h1 className="mt-5 mb-4">Dyhac</h1>
@@ -81,12 +85,12 @@ const Welcome = (props) => {
                             <div className="col-6">
                                 <label htmlFor="inputPassword4" className={'mb-1'}>Name</label>
                                 <input className="form-control" id="inputPassword4"
-                                 onChange={(e) => {
-                                    setGuestField({
-                                        ...useGuestField,
-                                        name: e.target.value
-                                    })
-                                }}/>
+                                       onChange={(e) => {
+                                           setGuestField({
+                                               ...useGuestField,
+                                               name: e.target.value
+                                           })
+                                       }}/>
                             </div>
                         </div>
                         <button type="button" className="btn btn-primary mt-3" onClick={roomGo}>Go</button>

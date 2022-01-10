@@ -3,12 +3,17 @@ import {useEffect, useState} from "react";
 import room from "../../model/room";
 import classNames from "classnames";
 import md5 from 'md5'
+
 const Room = (props) => {
     const id = useParams().id;
+
     const history = useHistory();
     const location = useLocation();
+
     const urlSearchParams = new URLSearchParams(location.search)
+
     const guest = urlSearchParams.get("guest")
+
     const [useID, setID] = useState(id);
 
     const [useRoomDetail, setRoomDetail] = useState({
@@ -16,24 +21,35 @@ const Room = (props) => {
         name: null,
         owner: null,
         question: [],
-        passwordCheck:false,
+        moderator: false
     });
 
     const [useAskQuestionField, setAskQuestionField] = useState()
 
-    useEffect(() => {
-        const roomScreen = async () => {
-            try {
-                const result = await room.screen(useID);
-                setRoomDetail(result);
-            } catch (e) {
-                history.push('/');
-            }
+    const [useScreenReload, setScreenReload] = useState()
 
+    const [useModeratorPassword, setModeratorPassword] = useState()
+
+    const roomScreen = async (password) => {
+        try {
+            const result = await room.screen(useID, password ? password : useModeratorPassword);
+            setRoomDetail(result);
+            return result;
+        } catch (e) {
+            history.push('/');
         }
-        roomScreen();
+    }
+
+    useEffect(() => {
+        roomScreen(useModeratorPassword);
     }, [useID])
 
+    useEffect(() => {
+        setTimeout(function () {
+            roomScreen(useModeratorPassword);
+            setScreenReload(Math.floor(Math.random() * 100));
+        }, 1000);
+    }, [useScreenReload])
 
     useEffect(() => {
         document.title = useRoomDetail.name + ' / ' + useRoomDetail.owner + ' - Dyhac';
@@ -53,15 +69,47 @@ const Room = (props) => {
     }
 
     const moderator = async () => {
-        let password = md5(prompt("Please enter room password:"));
-        const check = await room.screen(useID,password = password)
-        if(check['passwordCheck']){
-            setRoomDetail(check);
-            console.log(check);
-        }else{
-            console.log("fail");
+        let password = prompt("Please enter room password:");
+
+        if (!password) {
+            return;
+        }
+
+        password = md5(password)
+
+        const roomScreenResult = await roomScreen(password);
+
+        if (!roomScreenResult.moderator) {
+            return alert('Wrong password!');
+        }
+
+        setModeratorPassword(password);
+    }
+
+    const questionApprove = async (id) => {
+        try {
+            await room.questionApprove(useID, id, useModeratorPassword);
+        } catch (e) {
+            alert(e.message)
         }
     }
+
+    const questionDelete = async (id) => {
+        try {
+            await room.questionDelete(useID, id, useModeratorPassword);
+        } catch (e) {
+            alert(e.message)
+        }
+    }
+
+    const questionAnswer = async (id) => {
+        try {
+            await room.questionAnswer(useID, id, useModeratorPassword);
+        } catch (e) {
+            alert(e.message)
+        }
+    }
+
     return (
         <div className={classNames('mx-auto', 'mb-5')} style={{width: '690px'}}>
             <div className={classNames('d-flex', 'mt-5 mb-4')}>
@@ -75,7 +123,9 @@ const Room = (props) => {
                     display: 'flex',
                     alignItems: 'center'
                 }}>
-                    <button type="button" className="btn btn-primary" onClick={moderator}>I'm moderator</button>
+                    {(!useRoomDetail.moderator && !useModeratorPassword) && (
+                        <button type="button" className="btn btn-primary" onClick={moderator}>I'm moderator</button>
+                    )}
                 </div>
             </div>
 
@@ -89,8 +139,32 @@ const Room = (props) => {
                                 <p className="mb-0">{item.owner}</p>
                             )}
                             <div className="d-flex w-100 justify-content-between">
-                                <h5 className="mb-1 lh-base" style={{fontSize: '18px'}}>{item.content}</h5>
+                                <div className={useRoomDetail.moderator ? 'w-80' : 'w-100'}>
+                                    <h5 className="mb-1 lh-base" style={{fontSize: '18px'}}>{item.content}</h5>
+                                </div>
+                                {useRoomDetail.moderator && (
+                                    <div className={'w-20'}>
+                                        {!item.approve ? (
+                                            <button type="button" className="btn btn-success w-46 h-100"
+                                                    style={{marginRight: '10px'}} onClick={() => {
+                                                questionApprove(item.id);
+                                            }}>
+                                                <i className="fas fa-check"></i></button>
+                                        ) : !item.answer ? (
+                                            <button type="button" className="btn btn-primary w-46 h-100"
+                                                    style={{marginRight: '10px'}} onClick={() => {
+                                                questionAnswer(item.id);
+                                            }}>
+                                                <i className="fas fa-clipboard-list"></i></button>
+                                        ) : null}
+                                        <button type="button" className="btn btn-danger w-46 h-100" onClick={() => {
+                                            questionDelete(item.id);
+                                        }}>
+                                            <i className="fas fa-trash-alt"></i></button>
+                                    </div>
+                                )}
                             </div>
+
                         </a>
                     );
                 })}
@@ -105,7 +179,7 @@ const Room = (props) => {
                               }} value={useAskQuestionField}></textarea>
                 </div>
                 <div className={'col-3'}>
-                    <button type="button" className="btn btn-primary w-100 h-10" onClick={questionAsk}><i
+                    <button type="button" className="btn btn-primary w-100 h-100" onClick={questionAsk}><i
                         className="fas fa-paper-plane" style={{paddingRight: '10px'}}></i>Send
                     </button>
                 </div>
